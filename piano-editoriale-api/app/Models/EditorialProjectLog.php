@@ -9,7 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EditorialProjectLog extends Model
 {
     use HasFactory;
-
+     
+    const ACTION_CREATE='CREATE';
+    const ACTION_UPDATE='UPDATE';
+    const ACTION_DESTROY='DESTROY';
      /**
      * The table associated with the model.
      *

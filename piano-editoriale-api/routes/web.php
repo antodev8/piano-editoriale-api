@@ -12,12 +12,6 @@ use Illuminate\Support\Facades\Route;
 | contains the "web" middleware group. Now create something great!
 |
 */
-Route::get('/users', [UsersController::class, 'index'])->name('utenti.index');
-
-// Resources routes
-Route::resources([
-    'users' => UsersController::class,
-]);
 
 
 Route::get('/', function () {

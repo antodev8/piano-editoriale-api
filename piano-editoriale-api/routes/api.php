@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\AuthController;
+use App\Http\Controllers\API\EditorialProjectController;
 use App\Http\Controllers\API\UsersController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,7 @@ Route::group([
         // Resources routes
         Route::apiResources([
             'users' => UsersController::class,
+            'editorial-projects' => EditorialProjectController::class,
         ]);
     });
 });

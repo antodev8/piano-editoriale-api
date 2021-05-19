@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 
-class UserStoreRequest extends FormRequest
+class EditorialProjectShowRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -16,7 +16,14 @@ class UserStoreRequest extends FormRequest
     {
         return Auth::check();
     }
-
+    protected function prepareForValidation()
+    {
+        //explode trasforma una stringa in una array
+        // author,log => explode => ['author','log']
+        if ($this->has('with')) {
+            $this->merge(['with' => explode(',', $this->with)]);
+        }
+    }
     /**
      * Get the validation rules that apply to the request.
      *
@@ -24,13 +31,8 @@ class UserStoreRequest extends FormRequest
      */
     public function rules()
     {
-        
-            return [
-                'name' => 'required|string',
-                'email' => 'sometimes|required|email|unique:users,email',
-                'role_id' => 'required|exists:roles,id',
-                'password' => 'sometimes|nullable|string',
-            ];
-    
+        return [
+            //
+        ];
     }
 }

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Jobs\StoreEditorialProjectLogJob;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
+use function Illuminate\Events\queueable;
 
 class EditorialProject extends Model
 {
@@ -20,6 +23,22 @@ class EditorialProject extends Model
      * @var string
      */
     protected $table = 'editorial_projects';
+
+    public static function booted()
+    {
+        static::created(queueable(function ($editorial_project) {
+            StoreEditorialProjectLogJob::dispatchAfterResponse(Auth::id(), $editorial_project->id, EditorialProjectLog::ACTION_CREATE);
+        }));
+
+        static::updated(queueable(function ($editorial_project) {
+            StoreEditorialProjectLogJob::dispatchAfterResponse(Auth::id(), $editorial_project->id, EditorialProjectLog::ACTION_UPDATE);
+        }));
+
+        static::deleted(queueable(function ($editorial_project) {
+            StoreEditorialProjectLogJob::dispatchAfterResponse(Auth::id(), $editorial_project->id, EditorialProjectLog::ACTION_DESTROY);
+        }));
+    }
+
 
     /************************************************************************************
      * RELATIONS

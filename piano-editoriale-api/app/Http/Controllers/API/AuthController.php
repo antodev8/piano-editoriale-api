@@ -31,7 +31,9 @@ class AuthController extends Controller
             ]);
 
         }
-        return new AuthLoginResource($user) 
+        //return response()->json($user->createToken($user->email)->plainTextToken);
+
+        return new AuthLoginResource($user); 
     }
 
 }

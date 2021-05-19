@@ -19,11 +19,11 @@ class AuthLoginResource extends JsonResource
      * @return array
      */
 
-    public function toArray(User $user) {
+    public function toArray($request) {
         return [
-            'access_token'=> $this->user->createToken($this->user->email)->plainTextToken 
+            'access_token'=> $this->user->createToken($this->user->email)->plainTextToken, 
             'type' => 'Bearer',
             'user'=> new UserResource($this->user) 
-        ]
+        ];
     }
 }

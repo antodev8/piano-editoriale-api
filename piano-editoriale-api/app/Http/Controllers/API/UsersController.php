@@ -3,13 +3,18 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UserDestroyRequest;
+use App\Http\Requests\UserIndexRequest;
+use App\Http\Requests\UserShowRequest;
 use App\Http\Requests\UserStoreRequest;
-use App\Http\Resources\UserIndexResource;
-use App\Models\EditorialProject;
+use App\Http\Requests\UserUpdateRequest;
+use App\Http\Resources\UserResource;
+use App\Models\Role;
 use App\Models\User;
-use Illuminate\Http\Request;
+use Exception;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UsersController extends Controller
@@ -17,68 +22,133 @@ class UsersController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return AnonymousResourceCollection
+     * @return Response
      */
-    public function index()
+    public function index(UserIndexRequest $request): AnonymousResourceCollection
     {
-        $users = User::all()
+        $per_page = $request->query('per_page') ?: 15;
 
+        $users=User::query;
+
+        //filter by text 
+        if($text = $request->query('text')) {
+            $users->where(function($query) use($text){
+
+                $query->where('title','like', '%' . $text . '%')
+                ->orWhere('email', 'like', '%' . $text . '%');
+            });
+        }
+        // Filter by trashed
+        if ($request->has('trashed')) {
+            switch ($request->query('trashed')) {
+                case 'with':
+                    $users->withTrashed();
+                    break;
+                    case 'only':
+                        $users->onlyTrashed();
+                        break;
+                        default:
+                        $users->withTrashed();
+            }
+        }
+
+        $users = $users->paginate((iny)$per_page);
+         // Include relationship
+         if ($request->has('with')) {
+            $users->load($request->query('with'));
+         } 
         
-
-
-         
-         return UserIndexResource::collection($user);
-        
+         return UserResource::collection($users);
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param  Request $request
-     * @return Response
+     * @param  UserStoreRequest $request
+     * @return UserResource
+     * @throws Exception
      */
-    public function store(UserStoreRequest $request)
+    public function store(UserStoreRequest $request): UserResource
     {
+        db::beginTransaction();
+        try {
         $user = new User() 
         $user->name = $request->name;
         $user->email = $request->email;
         $user->password = Hash::make('password');
         $user->save();
 
-        return response()->json('ciao');
+        $user->roles()->attach(Role::find($request->role_id));
+
+        db::commit();  
+    }
+    catch(Exception $exception){
+        db::rollBack();
+        throw $exception;
+        
+    }
+        return new UserResource($users);
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
-     * @return Response
+     * @param  UserShowRequest  $request
+     * @param User $user
+     * @return Userresource
      */
-    public function show($id)
+    public function show(UserShowRequest $request, User $user): UserResource
     {
-        //
+         // Include relationship
+         if ($request->query('with')) {
+            $user->load($request->query('with'));
+        }
+        return new UserResource($user);
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  Request  $request
-     * @param  int  $id
-     * @return Response
+     * @param  UserUpdateRequest  $request
+     * @param  User  $user
+     * @return UserResource
+     * @throws Exception
      */
-    public function update(Request $request, $id)
+    public function update(UserUpdateRequest $request, User $user): UserResource
     {
-        //
+        DB::beginTransaction();
+
+        try {
+
+            $user->update($request->only(['title', 'email']));
+
+            if($request->('role_id')) {
+                $user->roles()->sync([$request->role_id]);
+            }
+
+            //StoreEditorialProjectLogJob::dispatchAfterResponse(Auth::id(), $editorial_project->id, EditorialProjectLog::ACTION_UPDATE);
+
+            DB::commit();
+        } catch (Exception $exception) {
+
+            DB::rollBack();
+            throw $exception;
+        }
+
+        return new UserResource($user);
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
+     * @param  UserDestroyRequest  $request
+     * @param User $user 
      * @return Response
      */
-    public function destroy($id)
+    public function destroy(UserDestroyRequest $request, User $user): Response
     {
-        //
+        $user->delete();
+
+        return response(null, 204);
     }
 }

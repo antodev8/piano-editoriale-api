@@ -1,4 +1,5 @@
 <?php
+use App\Models\EditorialProjectLog;
 use Carbon\Carbon;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -32,6 +33,7 @@ class CreateBasicTable extends Migration
             $table->string('name');
             $table->string('key')->unique();
             $table->string('description')->nullable();
+            $table->timestamps();
         });
 
         Schema::create('editorial_projects',function (Blueprint $table){
@@ -57,13 +59,13 @@ class CreateBasicTable extends Migration
             $table->id();
             $table->unsignedBigInteger('editorial_project_id');
             $table->unsignedBigInteger('user_id');
-            $table->enum('action',['CREATE','UPDATE','DESTROY']);
-            $table->dateTimeTz('created_at')->default(Carbon::now());
+            $table->enum('action',[EditorialProjectLog::ACTION_CREATE,EditorialProjectLog::ACTION_UPDATE,EditorialProjectLog::ACTION_DESTROY]);
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('editorial_project_id')->references('id')->on('editorial_projects')->onDelete('cascade');
+            $table->timestamps();
         });
 
-        \Illuminate\Support\Facades\Artisan::call('db:seed');
+        
     }
 
     /**
