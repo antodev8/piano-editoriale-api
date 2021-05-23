@@ -21,16 +21,18 @@ class UsersController extends Controller
 {
     /**
      * Display a listing of the resource.
-     *
-     * @return Response
+     *@param UserIndexRequest $request
+     * @return AnonymousResourceCollection
      */
     public function index(UserIndexRequest $request): AnonymousResourceCollection
     {
         $per_page = $request->query('per_page') ?: 15;
 
-        $users=User::query;
+        //$user->isAdmin();
 
-        //filter by text 
+        $users=User::query();
+
+        //filter by text
         if($text = $request->query('text')) {
             $users->where(function($query) use($text){
 
@@ -52,12 +54,14 @@ class UsersController extends Controller
             }
         }
 
-        $users = $users->paginate((iny)$per_page);
+        $users = $users->paginate((int)$per_page);
+
          // Include relationship
          if ($request->has('with')) {
             $users->load($request->query('with'));
-         } 
-        
+
+         }
+
          return UserResource::collection($users);
     }
 
@@ -72,7 +76,7 @@ class UsersController extends Controller
     {
         db::beginTransaction();
         try {
-        $user = new User() 
+        $user = new User();
         $user->name = $request->name;
         $user->email = $request->email;
         $user->password = Hash::make('password');
@@ -80,14 +84,14 @@ class UsersController extends Controller
 
         $user->roles()->attach(Role::find($request->role_id));
 
-        db::commit();  
+        db::commit();
     }
     catch(Exception $exception){
         db::rollBack();
         throw $exception;
-        
+
     }
-        return new UserResource($users);
+        return new UserResource($user);
     }
 
     /**
@@ -95,7 +99,7 @@ class UsersController extends Controller
      *
      * @param  UserShowRequest  $request
      * @param User $user
-     * @return Userresource
+     * @return UserResource
      */
     public function show(UserShowRequest $request, User $user): UserResource
     {
@@ -122,11 +126,11 @@ class UsersController extends Controller
 
             $user->update($request->only(['title', 'email']));
 
-            if($request->('role_id')) {
+            if($request->has('role_id')) {
                 $user->roles()->sync([$request->role_id]);
             }
 
-            //StoreEditorialProjectLogJob::dispatchAfterResponse(Auth::id(), $editorial_project->id, EditorialProjectLog::ACTION_UPDATE);
+
 
             DB::commit();
         } catch (Exception $exception) {
@@ -142,7 +146,7 @@ class UsersController extends Controller
      * Remove the specified resource from storage.
      *
      * @param  UserDestroyRequest  $request
-     * @param User $user 
+     * @param User $user
      * @return Response
      */
     public function destroy(UserDestroyRequest $request, User $user): Response

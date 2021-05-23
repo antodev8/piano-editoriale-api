@@ -12,6 +12,7 @@ use App\Http\Resources\EditorialProjectResource;
 use App\Jobs\StoreEditorialProjectLogJob;
 use App\Models\EditorialProject;
 use App\Models\EditorialProjectLog;
+use App\Models\Role;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -26,7 +27,8 @@ class EditorialProjectController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @param EditorialProjectIndexRequest $request
+     * @return AnonymousResourceCollection
      */
     public function index(EditorialProjectIndexRequest $request): AnonymousResourceCollection
     {
@@ -41,7 +43,11 @@ class EditorialProjectController extends Controller
             });
         }
 
-        // Filter by trashed 
+        if (!Auth::user()->isAdmin()) {
+            $editorial_projects->byUserRole(Auth::user()->role()['key']);
+        }
+
+        // Filter by trashed
         if ($request->has('trashed')) {
             switch ($request->query('trashed')) {
                 case 'with':
@@ -63,13 +69,15 @@ class EditorialProjectController extends Controller
         }
 
         return EditorialProjectResource::collection($editorial_projects);
+    }
 
-}
 /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+    * @param EditorialProjectStoreRequest $request
+     * @return EditorialProjectResource
+     * @throws Exception
+
      */
     public function store(EditorialProjectStoreRequest $request): EditorialProjectResource
     {
@@ -77,38 +85,38 @@ class EditorialProjectController extends Controller
 
       try {
 
-       $editorial_projects = new EditorialProjects();
-       $editorial_projects = title = $request->title;
-       $editorial_projects = pubblication_date = $request->pubblication_date;
-       $editorial_projects = pages = $request->pages;
-       $editorial_projects = price = $request->price;
-       $editorial_projects = cost = $request->cost;
-       $editorial_projects = author_id = $request->has(author_id) ? $request -> author_id : auth::id();
-       $editorial_projects = sector_id = $request->sector_id;
-       $editorial_projects->save();
-       
-       
+        $editorial_project = new EditorialProject();
+        $editorial_project->title = $request->title;
+        $editorial_project->publication_date = $request->publication_date;
+        $editorial_project->pages = $request->pages;
+        $editorial_project->price = $request->price;
+        $editorial_project->cost = $request->cost;
+        $editorial_project->sector_id = $request->sector_id;
+        $editorial_project->author_id = $request->has('author_id') ? $request->author_id : Auth::id();
+        $editorial_project->save();
 
-      
 
-    db::commit();  
+
+
+    db::commit();
     }
     catch(Exception $exception){
         db::rollBack();
         throw $exception;
-        
-    }
-    
-    return new EditorialProjectResource($editorial_projects);
 
-       
+    }
+
+    return new EditorialProjectResource($editorial_project);
+
+
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @param EditorialProjectShowRequest $request
+     * @param EditorialProject $editorial_project
+     * @return EditorialProjectResource
      */
     public function show(EditorialProjectShowRequest $request, EditorialProject $editorial_project):EditorialProjectResource
     {
@@ -123,9 +131,10 @@ class EditorialProjectController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @param EditorialProjectUpdateRequest $request
+     * @param EditorialProject $editorial_project
+     * @return EditorialProjectResource
+     * @throws Exception
      */
     public function update(EditorialProjectUpdateRequest $request, EditorialProject $editorial_project): EditorialProjectResource
     {
@@ -134,9 +143,30 @@ class EditorialProjectController extends Controller
 
         try {
 
-            $editorial_project->update($request->only(['title', 'sector_id', 'is_approved_by_ceo']));
+            $editorial_project->update($request->only(['title', 'sector_id',]));
 
-            //StoreEditorialProjectLogJob::dispatchAfterResponse(Auth::id(), $editorial_project->id, EditorialProjectLog::ACTION_UPDATE);
+            // Controllare che il ruolo dell'utente possa effettivamente fare l'update
+            $role_key = Auth::user()->roleKey();
+
+            if (!Auth::user()->isAdmin() && $editorial_project->userRoleCanUpdateFlags($role_key)) {
+                switch ($role_key) {
+                    case Role::ROLE_CEO:
+                        $editorial_project->update($request->only(['is_approved_by_ceo']));
+                        break;
+                    case Role::ROLE_EDITORIAL_DIRECTOR:
+                        $editorial_project->update($request->only(['is_approved_by_editorial_director']));
+                        break;
+                    case Role::ROLE_SALES_DIRECTOR:
+                        $editorial_project->update($request->only(['is_approved_by_sales_director']));
+                        break;
+                    case Role::ROLE_EDITORIAL_RESPONSIBLE:
+                        $editorial_project->update($request->only(['is_approved_by_editorial_responsible']));
+                        break;
+                    default:
+                        abort(403, 'Invalid Role');
+                }
+            }
+
 
             DB::commit();
         } catch (Exception $exception) {
@@ -151,15 +181,18 @@ class EditorialProjectController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @param EditorialProjectDestroyRequest $request
+     * @param EditorialProject $editorial_project
+     * @return Response
+     *
      */
-    public function destroy()
+    public function destroy(EditorialProjectDestroyRequest $request, EditorialProject $editorial_project): Response
     {
-        $editorial_project->delete(EditorialProjectDestroyRequest $request, EditorialProject $editorial_project): Response
+        $editorial_project->delete();
 
-        //StoreEditorialProjectLogJob::dispatchAfterResponse(Auth::id(), $editorial_project->id, EditorialProjectLog::ACTION_DESTROY);
+
 
         return response(null, 204);
     }
 }
+

@@ -14,7 +14,7 @@ use function Illuminate\Events\queueable;
 
 class EditorialProject extends Model
 {
-   
+
     use HasFactory, SoftDeletes;
 
     /**
@@ -23,6 +23,30 @@ class EditorialProject extends Model
      * @var string
      */
     protected $table = 'editorial_projects';
+/**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'title',
+        'pages',
+        'price',
+        'cost',
+        'sector_id',
+        'author_id',
+        'is_approved_by_ceo',
+        'is_approved_by_editorial_director',
+        'is_approved_by_editorial_responsible',
+        'is_approved_by_sales_director',
+    ];
+
+    protected $casts = [
+        'is_approved_by_ceo' => 'boolean',
+        'is_approved_by_editorial_director' => 'boolean',
+        'is_approved_by_editorial_responsible' => 'boolean',
+        'is_approved_by_sales_director' => 'boolean',
+    ];
 
     public static function booted()
     {
@@ -72,5 +96,65 @@ class EditorialProject extends Model
     public function logs(): HasMany
     {
         return $this->hasMany(EditorialProjectLog::class,'editorial_project_id');
+    }
+    /**
+     * Scopes
+     *
+     *
+     */
+
+     /**
+     * Filters projects by user role
+     *
+     * @param $query
+     * @param $role
+     * @return mixed
+     */
+    public function scopeByUserRole($query, $role)
+    {
+        switch ($role) {
+            case Role::ROLE_CEO:
+                return $query->where('is_approved_by_editorial_director', true)
+                    ->where('is_approved_by_editorial_responsible', true)
+                    ->where('is_approved_by_sales_director', true)
+                    ->where('is_approved_by_ceo', false);
+            case Role::ROLE_EDITORIAL_DIRECTOR:
+                return $query->where('is_approved_by_editorial_director', false)
+                    ->where('is_approved_by_editorial_responsible', true)
+                    ->where('is_approved_by_sales_director', true);
+            case Role::ROLE_SALES_DIRECTOR:
+                return $query->where('is_approved_by_sales_director', false);
+            case Role::ROLE_EDITORIAL_RESPONSIBLE:
+                return $query->where('is_approved_by_editorial_responsible', false);
+            default:
+                return $query->where('is_approved_by_editorial_director', false)
+                    ->where('is_approved_by_editorial_responsible', false)
+                    ->where('is_approved_by_sales_director', false)
+                    ->where('is_approved_by_ceo', false);
+        }
+    }
+    /************************************************************************************
+     * FUNCTIONS
+     */
+
+    /**
+     * Check if user can update flags
+     *
+     * @param $role
+     * @return bool
+     */
+    public function userRoleCanUpdateFlags($role): bool
+    {
+        switch ($role) {
+            case Role::ROLE_CEO:
+                return $this->is_approved_by_editorial_director && $this->is_approved_by_editorial_responsible && $this->is_approved_by_sales_director;
+            case Role::ROLE_EDITORIAL_DIRECTOR:
+                return !$this->is_approved_by_ceo && $this->is_approved_by_editorial_responsible && $this->is_approved_by_sales_director;
+            case Role::ROLE_SALES_DIRECTOR:
+            case Role::ROLE_EDITORIAL_RESPONSIBLE:
+                return !$this->is_approved_by_ceo && !$this->is_approved_by_editorial_director;
+            default:
+                return false;
+        }
     }
 }

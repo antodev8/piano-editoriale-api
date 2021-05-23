@@ -23,7 +23,7 @@ class AuthController extends Controller
     {
 
         $user = User::where('email',$request->email)->firstOrFail(); // Se non trova nessuna corrispondenza restituisce un errore automaticamente
-        
+
         if(!Hash::check($request->password, $user->password)) {
 
             throw ValidationException::withMessages([
@@ -33,7 +33,7 @@ class AuthController extends Controller
         }
         //return response()->json($user->createToken($user->email)->plainTextToken);
 
-        return new AuthLoginResource($user); 
+        return new AuthLoginResource($user);
     }
 
 }

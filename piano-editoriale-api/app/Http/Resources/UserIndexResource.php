@@ -20,6 +20,6 @@ class UserIndexResource extends JsonResource
         'name' =>$this->name,
         'email' => $this->email,
         // If utente è admin allora ritorna anche il ruolo
-        ]
+        ];
     }
 }
